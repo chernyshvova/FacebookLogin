@@ -1,8 +1,6 @@
 package com.example.facebook.login;
 
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.ImageView;
@@ -18,39 +16,29 @@ import com.facebook.Profile;
 import com.facebook.ProfileTracker;
 import com.facebook.login.LoginResult;
 import com.facebook.login.widget.LoginButton;
-
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
-
-import butterknife.BindView;
-import butterknife.ButterKnife;
+import com.squareup.picasso.Picasso;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = MainActivity.class.getName();
-    @BindView(R.id.login_button)
-    LoginButton loginButton;
-
-    @BindView(R.id.profileInfo)
-    TextView profileInfo;
-
-    @BindView(R.id.profileAvatar)
-    ImageView profileAvatar;
-
     private CallbackManager callbackManager = null;
-
-    private ProfileTracker profileTracker = null;
     private Profile currentProfile = null;
+    private TextView profileInfo = null;
+    private LoginButton loginButton = null;
+    private ImageView profileAvatar = null;
+    private ProfileTracker profileTracker = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        ButterKnife.bind(this);
         callbackManager = CallbackManager.Factory.create();
-        initializeLoginButton();
+        profileInfo = this.findViewById(R.id.profileInfo);
+        loginButton = this.findViewById(R.id.login_button);
+        profileAvatar = this.findViewById(R.id.profileAvatar);
 
+        setFacebookPermission();
+        initializeLoginButton();
     }
 
     @Override
@@ -59,29 +47,27 @@ public class MainActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
     }
 
-    private void initializeLoginButton() {
-        loginButton = (LoginButton) findViewById(R.id.login_button);
+    private void setFacebookPermission() {
         loginButton.setReadPermissions("email");
-        // Callback registration
+    }
+
+    private void initializeLoginButton() {
         loginButton.registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
             @Override
-            public void onSuccess(LoginResult loginResult) {
+            public void onSuccess(final LoginResult loginResult) {
                 if (Profile.getCurrentProfile() == null) {
                     profileTracker = new ProfileTracker() {
                         @Override
                         protected void onCurrentProfileChanged(Profile oldProfile, Profile newProfile) {
-                            Log.v("facebook - profile", currentProfile.getFirstName());
+                            Log.v("facebook - profile", newProfile.getFirstName());
                             currentProfile = newProfile;
+                            showUserInfo(loginResult);
                         }
                     };
-                    // no need to call startTracking() on mProfileTracker
-                    // because it is called by its constructor, internally.
                 } else {
                     currentProfile = Profile.getCurrentProfile();
-
+                    showUserInfo(loginResult);
                 }
-                showUserInfo(loginResult);
-                profileTracker.stopTracking();
             }
 
             @Override
@@ -104,30 +90,19 @@ public class MainActivity extends AppCompatActivity {
         Log.d(TAG, exception.getLocalizedMessage());
     }
 
-    private void showUserInfo(LoginResult loginResult) {
+    private void showUserInfo(final LoginResult loginResult) {
         String profileInfoText = "";
-        profileInfoText = profileInfoText.concat("First name: ").concat(currentProfile.getFirstName());
-        profileInfoText = profileInfoText.concat("Last name: ").concat(currentProfile.getLastName());
-        profileInfoText = profileInfoText.concat("ID").concat(currentProfile.getId());
-        profileInfoText = profileInfoText.concat("Access token").concat(loginResult.getAccessToken().getToken());
+        profileInfoText = profileInfoText.concat("First name: ").concat(currentProfile.getFirstName().concat("\n"));
+        profileInfoText = profileInfoText.concat("Last name: ").concat(currentProfile.getLastName().concat("\n"));
+        profileInfoText = profileInfoText.concat("ID: ").concat(currentProfile.getId().concat("\n"));
+        profileInfoText = profileInfoText.concat("Access token: ").concat(loginResult.getAccessToken().getToken().concat("\n"));
         profileInfo.setText(profileInfoText);
 
         loadAvatar(currentProfile.getId());
     }
 
     private void loadAvatar(String userId) {
-        URL imageURL = null;
-        try {
-            imageURL = new URL("https://graph.facebook.com/" + userId + "/picture?type=large");
-            Bitmap bitmap = BitmapFactory.decodeStream(imageURL.openConnection().getInputStream());
-            profileAvatar.setImageBitmap(bitmap);
-        } catch (MalformedURLException e) {
-            Toast.makeText(this, e.getMessage(), Toast.LENGTH_SHORT).show();
-            Log.d(TAG, "failed to load avatar, ".concat(e.getMessage()));
-        } catch (IOException e) {
-            Toast.makeText(this, e.getMessage(), Toast.LENGTH_SHORT).show();
-            Log.d(TAG, "failed to load avatar, ".concat(e.getMessage()));
-        }
-
+        String imageUrl = "https://graph.facebook.com/" + userId + "/picture?type=normal";
+        Picasso.with(MainActivity.this).load(imageUrl).into(profileAvatar);
     }
 }
