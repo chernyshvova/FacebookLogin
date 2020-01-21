@@ -3,20 +3,26 @@ package com.example.facebook.login;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.facebook.AccessToken;
+import com.facebook.AccessTokenTracker;
 import com.facebook.CallbackManager;
 import com.facebook.FacebookCallback;
 import com.facebook.FacebookException;
 import com.facebook.Profile;
 import com.facebook.ProfileTracker;
 import com.facebook.login.LoginResult;
+
+
 import com.facebook.login.widget.LoginButton;
 import com.squareup.picasso.Picasso;
+
 
 public class MainActivity extends AppCompatActivity {
 
@@ -27,6 +33,7 @@ public class MainActivity extends AppCompatActivity {
     private LoginButton loginButton = null;
     private ImageView profileAvatar = null;
     private ProfileTracker profileTracker = null;
+    private AccessTokenTracker accessTokenTracker = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,6 +46,28 @@ public class MainActivity extends AppCompatActivity {
 
         setFacebookPermission();
         initializeLoginButton();
+        updateLoginStatus();
+
+    }
+
+    private void updateLoginStatus() {
+        callbackManager = CallbackManager.Factory.create();
+
+        accessTokenTracker = new AccessTokenTracker() {
+            @Override
+            protected void onCurrentAccessTokenChanged(
+                    AccessToken oldAccessToken,
+                    AccessToken currentAccessToken) {
+            }
+        };
+
+        AccessToken accessToken = AccessToken.getCurrentAccessToken();
+        if (accessToken != null) {
+            currentProfile = Profile.getCurrentProfile();
+            showUserInfo(accessToken.getToken());
+            hideLoginButton();
+        }
+
     }
 
     @Override
@@ -55,26 +84,27 @@ public class MainActivity extends AppCompatActivity {
         loginButton.registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
             @Override
             public void onSuccess(final LoginResult loginResult) {
+                Log.d(TAG, "onSuccess onSuccess");
                 if (Profile.getCurrentProfile() == null) {
                     profileTracker = new ProfileTracker() {
                         @Override
                         protected void onCurrentProfileChanged(Profile oldProfile, Profile newProfile) {
-                            Log.v("facebook - profile", newProfile.getFirstName());
                             currentProfile = newProfile;
-                            showUserInfo(loginResult);
+                            Log.d(TAG, "onCurrentProfileChanged onSuccess");
+                            showUserInfo(loginResult.getAccessToken().getToken());
+                            hideLoginButton();
                         }
                     };
                 } else {
                     currentProfile = Profile.getCurrentProfile();
-                    showUserInfo(loginResult);
+                    showUserInfo(loginResult.getAccessToken().getToken());
                 }
             }
 
             @Override
             public void onCancel() {
-                // App code
-                Toast.makeText(MainActivity.this, "onCancel", Toast.LENGTH_SHORT).show();
-                Log.d(TAG, "OnCancle");
+                //stub
+                Log.d(TAG, "onCancel");
             }
 
 
@@ -85,17 +115,22 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private void hideLoginButton(){
+        loginButton.setVisibility(View.GONE);
+        loginButton.setEnabled(false);
+    }
+
     private void showError(FacebookException exception) {
         Toast.makeText(this, exception.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
         Log.d(TAG, exception.getLocalizedMessage());
     }
 
-    private void showUserInfo(final LoginResult loginResult) {
+    private void showUserInfo(String accessToken) {
         String profileInfoText = "";
         profileInfoText = profileInfoText.concat("First name: ").concat(currentProfile.getFirstName().concat("\n"));
         profileInfoText = profileInfoText.concat("Last name: ").concat(currentProfile.getLastName().concat("\n"));
         profileInfoText = profileInfoText.concat("ID: ").concat(currentProfile.getId().concat("\n"));
-        profileInfoText = profileInfoText.concat("Access token: ").concat(loginResult.getAccessToken().getToken().concat("\n"));
+        profileInfoText = profileInfoText.concat("Access token: ").concat(accessToken.concat("\n"));
         profileInfo.setText(profileInfoText);
 
         loadAvatar(currentProfile.getId());
