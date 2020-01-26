@@ -3,6 +3,8 @@ package com.example.facebook.login;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -17,6 +19,7 @@ import com.facebook.FacebookCallback;
 import com.facebook.FacebookException;
 import com.facebook.Profile;
 import com.facebook.ProfileTracker;
+import com.facebook.login.LoginManager;
 import com.facebook.login.LoginResult;
 
 
@@ -47,12 +50,35 @@ public class MainActivity extends AppCompatActivity {
         setFacebookPermission();
         initializeLoginButton();
         updateLoginStatus();
+    }
 
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        menu.add(0, 1, 0, "logout");
+
+        return super.onCreateOptionsMenu(menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        LogOut();
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void LogOut() {
+        resetAllView();
+        LoginManager.getInstance().logOut();
+    }
+
+    private void resetAllView() {
+        profileAvatar.invalidate();
+        profileAvatar.setImageBitmap(null);
+        profileInfo.setText("");
+        loginButton.setEnabled(true);
+        loginButton.setVisibility(View.VISIBLE);
     }
 
     private void updateLoginStatus() {
-        callbackManager = CallbackManager.Factory.create();
-
         accessTokenTracker = new AccessTokenTracker() {
             @Override
             protected void onCurrentAccessTokenChanged(
@@ -91,8 +117,14 @@ public class MainActivity extends AppCompatActivity {
                         protected void onCurrentProfileChanged(Profile oldProfile, Profile newProfile) {
                             currentProfile = newProfile;
                             Log.d(TAG, "onCurrentProfileChanged onSuccess");
-                            showUserInfo(loginResult.getAccessToken().getToken());
-                            hideLoginButton();
+                            if(newProfile != null){
+                                showUserInfo(loginResult.getAccessToken().getToken());
+                                hideLoginButton();
+                            }else{
+                                resetAllView();
+                            }
+
+
                         }
                     };
                 } else {
@@ -116,6 +148,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void hideLoginButton(){
+
         loginButton.setVisibility(View.GONE);
         loginButton.setEnabled(false);
     }
